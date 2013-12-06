@@ -1,8 +1,10 @@
 require 'pry'
 require 'csv'
 
-TAX_RATE = 0.30
 class Employee
+
+  TAX_RATE = 0.30
+
   attr_reader :first_name, :last_name, :job, :salary #:commission, :bonuses, :quota
 
   def initalize(information)
@@ -10,8 +12,6 @@ class Employee
     @last_name = last_name
     @job = job
     @salary = salary
-    # @file = IO.read('employee_payroll.csv')
-    # @file = CSV.parse("#{@file}")
   end
 
   def gross_salary
@@ -26,43 +26,39 @@ class Employee
     gross_salary - taxes
   end
 
-  # def self.load_csv(filename)
-  
-  # end
-
-  def self.read_employee
-    @employees_list = []
-    CSV.foreach(@filename, headers:true) do |row|
-      information = row.to_hash
-      if information["job"] == 'Salary_Only'
-        @employees_list << Employee.new(information)
-      elsif information["job"] == 'Quota'
-        @employees_list << QuotaSalesPerson.new(information)
-      elsif information["job"] == 'Commission'
-        @employees_list << CommissionSalesPerson.new(information)
-      elsif information["job"] == 'Owner'
-        @employees_list << Owner.new(information)
-      end
+  def self.load_csv(filename)
+    employee_list = []
+    CSV.foreach(filename, headers: true) do |row|
+      employee_list << Employee.new(row['first_name'], row['last_name'], row['job'], row['salary'])
     end
-    @employees_list
+    employee_list    
   end
 end
 
+# take the method out of the employee class and check the csv file to check what kind of employee they are and create their type of employee
+class Sale
+  attr_reader :last_name, :gross_sale_value
 
-class Load
   def initialize(filename)
     @filename = filename
   end
-  Employee.read_employee
-end
 
-#convert to sale object
-class Sale
-  def list_of_sales
-    sales = []
-    CSV.foreach('sales.csv', headers: true) do |row|
-      sales << row
+  def total_sales
+    sum = 0
+    CSV.foreach(@filename, headers: true) do |row|
+      sum += row[:gross_sale_value]
     end
+    sum
+  end
+# store the gross sale value for each employee and how to pass the employee into the method
+  def personal_sales(last_name)
+    personal_sum = 0
+    CSV.foreach(@filename, headers: true) do |row|
+      if row[:last_name] == last_name
+        personal_sum += row[:gross_sale_value]
+      end
+    end
+    personal_sum
   end
 end
 
@@ -85,14 +81,6 @@ class CommissionSalesPerson < Employee
     sum
   end
   
-  # set last names = to each other
-  # if e
-  #  get sales[:gross_sale_value]
-  # sum up GSV
-  # do math
-
-
-
   # read and parse sales.csv
   # iterate over sales.csv, check last name of commission jobs
   # if job == 'commision', get last_name and gross_sales_value for EACH employee
@@ -104,15 +92,5 @@ class CommissionSalesPerson < Employee
   end
 end
 
-# loads everything from csv file yay
-
-# employees = Employee.load_csv('employee_payroll.csv')
-
-
-
-# test = Employee.new
-# binding.pry
-# puts test
-
-    # person = Employee.new('employee_payroll.csv')
-    # worker = person.
+employees = Employee.load_csv('employee_payroll.csv')
+# same for sale
