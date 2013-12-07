@@ -7,11 +7,12 @@ class Employee
 
   attr_reader :first_name, :last_name, :job, :salary #:commission, :bonuses, :quota
 
-  def initalize(information)
-    @first_name = first_name
-    @last_name = last_name
-    @job = job
-    @salary = salary
+  def initialize(information)
+
+    @first_name = information["first_name"]
+    @last_name = information["last_name"]
+    @job = information["job"]
+    @salary = information["salary"].to_f
   end
 
   def gross_salary
@@ -25,72 +26,138 @@ class Employee
   def net_pay
     gross_salary - taxes
   end
+end
 
+class Load
   def self.load_csv(filename)
     employee_list = []
     CSV.foreach(filename, headers: true) do |row|
-      employee_list << Employee.new(row['first_name'], row['last_name'], row['job'], row['salary'])
+      data = row.to_hash
+      if data["job"] == 'Salary_Only'
+        employee_list << Employee.new(data)
+      elsif data["job"] == 'Quota'
+        employee_list << QuotaSalesPerson.new(data)
+      elsif data["job"] == 'Commission'
+        employee_list << CommissionSalesPerson.new(data)
+      elsif data["job"] == 'Owner'
+        employee_list << Owner.new(data)
+      end
     end
     employee_list    
-  end
+  end  
 end
 
-# take the method out of the employee class and check the csv file to check what kind of employee they are and create their type of employee
-class Sale
-  attr_reader :last_name, :gross_sale_value
+class TotalSales
 
   def initialize(filename)
+    @sales = Hash.new(0)
     @filename = filename
+    CSV.foreach(@filename, headers: true) do |row|
+      last_name = row["last_name"]
+      gross_sale_value = row["gross_sale_value"] 
+      @sales[last_name] += gross_sale_value.to_f
+    end
   end
 
   def total_sales
     sum = 0
-    CSV.foreach(@filename, headers: true) do |row|
-      sum += row[:gross_sale_value]
+    @sales.each do |lastname, amount|
+      sum += amount
     end
-    sum
+    sum    
   end
-# store the gross sale value for each employee and how to pass the employee into the method
+
   def personal_sales(last_name)
-    personal_sum = 0
-    CSV.foreach(@filename, headers: true) do |row|
-      if row[:last_name] == last_name
-        personal_sum += row[:gross_sale_value]
-      end
-    end
-    personal_sum
+    @sales[last_name]
   end
 end
 
 class CommissionSalesPerson < Employee
-    attr_reader  :commission
+  attr_reader :commission
+
   def initialize(information)
-    @commission = information["Commission"].to_f
-    @gross_monthly_sales = information["gross_sale_value"].to_f
+    sales = TotalSales.new('sales.csv')
+    @commission = information["commission"].to_f
+    @gross_sale_value = sales["gross_sale_value"].to_f
     super(information)
   end
 
   def commission_calc
-    sum = 0
-    if employee_payroll[:last_name] == sales[:last_name]
-      sales.each do |money|
-        money = sales[:gross_sale_value]
-        sum += money
-      end
+    if @last_name == last_name
+      @commission_earned = @commission * @gross_sale_value
     end
-    sum
+    @commission_earned
   end
-  
-  # read and parse sales.csv
-  # iterate over sales.csv, check last name of commission jobs
-  # if job == 'commision', get last_name and gross_sales_value for EACH employee
-  # sum gross_sales_value PER employee
-  # check gross_sales_value
 
   def gross_salary
-    new_commission = @salary.to_f / 12 + @commission * @gross_monthly_sales
-  end
+    @salary.to_f / 12 + @commission_earned
+  end  
 end
 
-employees = Employee.load_csv('employee_payroll.csv')
-# same for sale
+class QuotaSalesPerson < Employee
+  attr_reader :bonuses, :quota
+
+  def initialize(information)
+    sales = TotalSales.new('sales.csv')
+    @bonuses = information["bonuses"].to_f
+    @quota = information["quota"].to_f
+    @gross_sale_value = sales["gross_sale_value"].to_f
+    super(information)
+  end
+
+  def bonus_calc
+    if @last_name == last_name
+      if @gross_sale_value >= @quota
+        @bonuses_earned = @bonuses
+      else
+        @bonuses_earned = 0
+      end
+      @bonuses_earned
+    end
+  end
+
+  def gross_salary
+    @salary.to_f / 12 + @bonuses_earned
+  end  
+end
+
+class Owner < Employee
+  attr_reader :bonuses, :quota
+
+  def initialize(information)
+    sales = TotalSales.new('sales.csv')
+    @bonuses = information["bonuses"].to_f
+    @quota = information["quota"].to_f
+    super(information)
+  end
+
+  def bonus_calc
+    if sales.total_sales >= @quota
+      @bonuses_earned = @bonuses
+    else
+      @bonuses_earned = 0
+    end
+    @bonuses_earned
+  end
+
+  def gross_salary
+    @salary.to_f / 12 + @bonuses_earned
+  end  
+end
+
+
+
+employee_load = Load.load_csv('employee_payroll.csv')
+sales = TotalSales.new('sales.csv')
+employee_list.each do |employee|
+  puts "***#{@first_name} #{@last_name}***"
+  puts "Gross Salary: #{gross_salary}"
+  if data["job"] == 'Commission'
+    puts "Commission: #{commission_earned}" 
+  elsif data["job"] == 'Quota'
+    puts "Bonus: #{bonuses_earned}" 
+  elsif data["job"] == 'Owner'
+    puts "Bonus: #{bonuses_earned}" 
+  end
+  puts "Net Pay: #{net_pay}"
+end
